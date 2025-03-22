@@ -3,11 +3,14 @@ package com.example.moldmanagement.config;
 import com.example.moldmanagement.entity.Material;
 import com.example.moldmanagement.entity.Mold;
 import com.example.moldmanagement.entity.Process;
+import com.example.moldmanagement.entity.User;
 import com.example.moldmanagement.repository.MaterialRepository;
 import com.example.moldmanagement.repository.MoldRepository;
 import com.example.moldmanagement.repository.ProcessRepository;
+import com.example.moldmanagement.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -19,21 +22,30 @@ public class DataInitializer implements CommandLineRunner {
     private final MoldRepository moldRepository;
     private final ProcessRepository processRepository;
     private final MaterialRepository materialRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public DataInitializer(MoldRepository moldRepository, 
                           ProcessRepository processRepository,
-                          MaterialRepository materialRepository) {
+                          MaterialRepository materialRepository,
+                          UserRepository userRepository,
+                          PasswordEncoder passwordEncoder) {
         this.moldRepository = moldRepository;
         this.processRepository = processRepository;
         this.materialRepository = materialRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) {
-        // 检查是否已有数据
+        // 初始化用户数据
+        initUserData();
+        
+        // 检查是否已有模具数据
         if (moldRepository.count() > 0) {
-            return; // 如果已有数据，则不初始化
+            return; // 如果已有数据，则不初始化模具和辅料
         }
 
         // 初始化模具数据
@@ -41,6 +53,38 @@ public class DataInitializer implements CommandLineRunner {
         
         // 初始化辅料数据
         initMaterialData();
+    }
+    
+    private void initUserData() {
+        // 检查是否已有管理员账户
+        if (!userRepository.existsByUsername("admin")) {
+            // 创建默认管理员账户
+            User admin = new User();
+            admin.setUsername("admin");
+            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setName("系统管理员");
+            admin.setEmail("admin@example.com");
+            admin.setRole("ADMIN");
+            admin.setActive(true);
+            
+            userRepository.save(admin);
+            System.out.println("默认管理员账户已创建");
+        }
+
+        // 检查是否已有测试用户账户
+        if (!userRepository.existsByUsername("user")) {
+            // 创建默认测试用户
+            User user = new User();
+            user.setUsername("user");
+            user.setPassword(passwordEncoder.encode("user123"));
+            user.setName("测试用户");
+            user.setEmail("user@example.com");
+            user.setRole("USER");
+            user.setActive(true);
+            
+            userRepository.save(user);
+            System.out.println("默认测试用户已创建");
+        }
     }
 
     private void initMoldData() {
@@ -53,6 +97,22 @@ public class DataInitializer implements CommandLineRunner {
         mold1.setStatus("notStarted");
         
         moldRepository.save(mold1);
+     // 为SC25-01添加工序数据 - 添加这段代码
+        Process designProcess1 = new Process();
+        designProcess1.setName("设计图纸");
+        designProcess1.setWeight(2.0);
+        designProcess1.setStatus("notStarted");
+        designProcess1.setModuleType("frame");
+        designProcess1.setMold(mold1);
+        
+        Process materialProcess1 = new Process();
+        materialProcess1.setName("模料");
+        materialProcess1.setWeight(7.0);
+        materialProcess1.setStatus("notStarted");
+        materialProcess1.setModuleType("frame");
+        materialProcess1.setMold(mold1);
+        
+        processRepository.saveAll(Arrays.asList(designProcess1, materialProcess1));
 
         // 创建模具2：SC25-02（已开始生产）
         Mold mold2 = new Mold();
